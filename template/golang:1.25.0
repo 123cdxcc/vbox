@@ -1,0 +1,76 @@
+FROM debian:bullseye-slim
+
+# 设置环境变量避免交互式安装
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装 openssh-server 和 sudo，并清理缓存
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssh-server \
+    sudo \
+    ca-certificates \
+    curl \
+    wget \
+    git \
+    vim \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir /var/run/sshd
+
+RUN wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz && \
+    rm -rf /usr/local/go && \
+    tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz && \
+    rm go1.25.0.linux-amd64.tar.gz
+
+# 生成 SSH 主机密钥
+RUN ssh-keygen -A
+
+# 创建用户 devbox 并允许 sudo
+RUN useradd -ms /bin/bash devbox && \
+    echo "devbox ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# 创建工作目录
+RUN mkdir -p /workspace && chown devbox:devbox /workspace
+
+# 配置 SSH 安全设置
+RUN mkdir -p /home/devbox/.ssh && \
+    chown -R devbox:devbox /home/devbox/.ssh && \
+    chmod 700 /home/devbox/.ssh && \
+    # 禁用密码认证，只允许密钥认证
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    # 禁用root登录
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    # 启用严格模式（检查文件权限）
+    echo "StrictModes yes" >> /etc/ssh/sshd_config && \
+    # 禁用空密码
+    echo "PermitEmptyPasswords no" >> /etc/ssh/sshd_config && \
+    # 限制认证尝试次数
+    echo "MaxAuthTries 3" >> /etc/ssh/sshd_config && \
+    # 设置会话超时
+    echo "ClientAliveInterval 300" >> /etc/ssh/sshd_config && \
+    echo "ClientAliveCountMax 2" >> /etc/ssh/sshd_config && \
+    # 禁用 X11 转发（如果不需要）
+    echo "X11Forwarding no" >> /etc/ssh/sshd_config && \
+    # 只允许特定用户
+    echo "AllowUsers devbox" >> /etc/ssh/sshd_config
+
+# 设置默认工作目录和 Go 环境变量
+RUN echo "cd /workspace" >> /home/devbox/.bashrc && \
+    echo "export PATH=\$PATH:/usr/local/go/bin" >> /home/devbox/.bashrc && \
+    echo "export GOPATH=/home/devbox/go" >> /home/devbox/.bashrc && \
+    echo "export GOBIN=\$GOPATH/bin" >> /home/devbox/.bashrc && \
+    mkdir -p /home/devbox/go/{bin,src,pkg} && \
+    chown -R devbox:devbox /home/devbox/go
+
+# 复制启动脚本
+COPY setup.sh /usr/local/bin/setup.sh
+RUN chmod +x /usr/local/bin/setup.sh
+
+# 切换到非 root 用户运行时目录
+WORKDIR /workspace
+
+# 开放 SSH 端口
+EXPOSE 22
+
+# 使用启动脚本启动服务
+CMD ["/usr/local/bin/setup.sh"]
