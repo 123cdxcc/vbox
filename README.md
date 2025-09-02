@@ -1,27 +1,19 @@
-# VBox - SSH 开发容器
+# VBox 开发容器
 
 ## 构建镜像
 
 ```bash
-docker build -f ./template/Base-Dockerfile -t devbox ./template
-```
-
-## 生成公钥
-```
-ssh-keygen -t ed25519 -f .ssh/demo -C "demo" -N "" -q
+vbox image build -n golang -v 1.25.0 
 ```
 
 ## 启动容器
 
 ```bash
-docker run -d \
-  -p 2222:22 \
-  -v .ssh/demo.pub:/home/devbox/.ssh/authorized_keys:ro \
-  devbox
+vbox run --name golang-demo golang:1.25.0
 ```
 
 ## 连接容器
 
 ```bash
-ssh devbox@localhost
+ssh golang-demo
 ```
