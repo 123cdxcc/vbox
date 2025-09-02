@@ -15,7 +15,6 @@ import (
 	"github.com/123cdxcc/vbox/box"
 	"github.com/123cdxcc/vbox/config"
 	"github.com/123cdxcc/vbox/constant"
-	"github.com/123cdxcc/vbox/image"
 	"github.com/123cdxcc/vbox/pkg/tools"
 )
 
@@ -51,11 +50,15 @@ type BoxRemoveParams struct {
 }
 
 // BoxService 提供 box 相关的业务逻辑
-type BoxService struct{}
+type BoxService struct {
+	imageService *ImageService
+}
 
 // NewBoxService 创建新的 BoxService 实例
 func NewBoxService() *BoxService {
-	return &BoxService{}
+	return &BoxService{
+		imageService: NewImageService(),
+	}
 }
 
 // ListBoxes 列出所有 vbox
@@ -168,7 +171,10 @@ func (s *BoxService) Run(ctx context.Context, params BoxRunParams) (boxContainer
 
 	if !exists {
 		// 镜像不存在，尝试从模板构建
-		if err := s.buildImageFromTemplate(ctx, imageName, imageVersion); err != nil {
+		if err := s.imageService.BuildImage(ctx, ImageBuildParams{
+			EnvName: imageName,
+			Version: imageVersion,
+		}); err != nil {
 			return nil, fmt.Errorf("镜像 %s 不存在且无法从模板构建: %w", imageFullName, err)
 		}
 	}
@@ -223,28 +229,6 @@ func (s *BoxService) Run(ctx context.Context, params BoxRunParams) (boxContainer
 	}
 
 	return container, nil
-}
-
-// buildImageFromTemplate 根据模板构建镜像
-func (s *BoxService) buildImageFromTemplate(ctx context.Context, imageName, imageVersion string) error {
-	templatePath, err := tools.GetTemplatePath(config.GlobalConfig.TemplatesDirPath, imageName)
-	if err != nil {
-		return err
-	}
-
-	slog.InfoContext(ctx, fmt.Sprintf("正在构建镜像 %s，使用模板 %s...", imageName, templatePath))
-
-	ch, err := image.BuildFromDockerfile(ctx, templatePath, imageName, imageVersion)
-	if err != nil {
-		return err
-	}
-	for buildResponse := range ch {
-		if buildResponse.Error != nil {
-			return fmt.Errorf("镜像构建失败: %s", *buildResponse.Error)
-		}
-		slog.InfoContext(ctx, buildResponse.Stream)
-	}
-	return nil
 }
 
 // StopBox 停止指定的 box

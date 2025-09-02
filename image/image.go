@@ -18,13 +18,15 @@ import (
 
 // BuildOptions 构建选项
 type BuildOptions struct {
-	Name        string             // 镜像名称
-	Version     string             // 版本
-	Dockerfile  string             // Dockerfile 路径
-	Remove      bool               // 是否删除中间容器
-	ForceRemove bool               // 强制删除中间容器
-	NoCache     bool               // 不使用缓存
-	BuildArgs   map[string]*string // 构建参数
+	Name           string             // 镜像名称
+	Version        string             // 版本
+	Dockerfile     string             // Dockerfile 路径
+	SetupScript    string             // 启动脚本路径
+	SetupEnvScript string             // 环境脚本路径
+	Remove         bool               // 是否删除中间容器
+	ForceRemove    bool               // 强制删除中间容器
+	NoCache        bool               // 不使用缓存
+	BuildArgs      map[string]*string // 构建参数
 }
 
 type BuildResponse struct {
@@ -40,7 +42,7 @@ func Build(ctx context.Context, opts BuildOptions) (<-chan BuildResponse, error)
 	cli := config.GlobalConfig.GetDockerClient()
 
 	// 创建 tar 构建上下文
-	buildContext, err := tools.CreateBuildContext(opts.Dockerfile)
+	buildContext, err := tools.CreateBuildContext(opts.Dockerfile, opts.SetupScript, opts.SetupEnvScript)
 	if err != nil {
 		return nil, fmt.Errorf("创建构建上下文失败: %w", err)
 	}
@@ -76,17 +78,6 @@ func Build(ctx context.Context, opts BuildOptions) (<-chan BuildResponse, error)
 	}()
 
 	return ch, nil
-}
-
-// BuildFromDockerfile 从单个 Dockerfile 构建镜像（简化版本）
-func BuildFromDockerfile(ctx context.Context, dockerfilePath string, name, version string) (<-chan BuildResponse, error) {
-	return Build(ctx, BuildOptions{
-		Name:       name,
-		Version:    version,
-		Dockerfile: dockerfilePath,
-		Remove:     true,
-		NoCache:    false,
-	})
 }
 
 type Image struct {

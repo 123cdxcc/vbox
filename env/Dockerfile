@@ -15,11 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir /var/run/sshd
 
-RUN wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz && \
-    rm -rf /usr/local/go && \
-    tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz && \
-    rm go1.25.0.linux-amd64.tar.gz
-
 # 生成 SSH 主机密钥
 RUN ssh-keygen -A
 
@@ -54,13 +49,12 @@ RUN mkdir -p /home/devbox/.ssh && \
     # 只允许特定用户
     echo "AllowUsers devbox" >> /etc/ssh/sshd_config
 
-# 设置默认工作目录和 Go 环境变量
-RUN echo "cd /workspace" >> /home/devbox/.bashrc && \
-    echo "export PATH=\$PATH:/usr/local/go/bin" >> /home/devbox/.bashrc && \
-    echo "export GOPATH=/home/devbox/go" >> /home/devbox/.bashrc && \
-    echo "export GOBIN=\$GOPATH/bin" >> /home/devbox/.bashrc && \
-    mkdir -p /home/devbox/go/{bin,src,pkg} && \
-    chown -R devbox:devbox /home/devbox/go
+# 设置默认工作目录
+RUN echo "cd /workspace" >> /home/devbox/.bashrc
+
+# 复制并执行环境设置脚本
+COPY env.sh /tmp/env.sh
+RUN chmod +x /tmp/env.sh && /tmp/env.sh
 
 # 复制启动脚本
 COPY setup.sh /usr/local/bin/setup.sh

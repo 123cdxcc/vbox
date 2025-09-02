@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/123cdxcc/vbox/constant"
 	"github.com/moby/moby/client"
 )
 
 type Config struct {
+	AppConfigDirPath string
 	AppSSHConfigPath string
 	AppSSHDirPath    string
 	TemplatesDirPath string
@@ -25,11 +25,13 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	appSSHDirPath := filepath.Join(userHomeDir, ".config", "vbox", "ssh")
+	appConfigDirPath := filepath.Join(userHomeDir, ".config", "vbox")
+	appSSHDirPath := filepath.Join(appConfigDirPath, "ssh")
 	GlobalConfig = &Config{
+		AppConfigDirPath: appConfigDirPath,
 		AppSSHDirPath:    appSSHDirPath,
 		AppSSHConfigPath: filepath.Join(appSSHDirPath, "config"),
-		TemplatesDirPath: constant.DefaultTemplatesDirPath,
+		TemplatesDirPath: filepath.Join(appConfigDirPath, "env"),
 	}
 	userHomeSSHConfigPath := filepath.Join(userHomeDir, ".ssh", "config")
 

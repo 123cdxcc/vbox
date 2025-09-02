@@ -30,14 +30,12 @@ var buildCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// 获取flag值
-		dockerfile, _ := cmd.Flags().GetString("dockerfile")
 		name, _ := cmd.Flags().GetString("name")
 		version, _ := cmd.Flags().GetString("version")
 
 		params := service.ImageBuildParams{
-			DockerfilePath: dockerfile,
-			Name:           name,
-			Version:        version,
+			EnvName: name,
+			Version: version,
 		}
 
 		if err := imageService.BuildImage(ctx, params); err != nil {
@@ -117,12 +115,10 @@ func init() {
 	imageCmd.AddCommand(rmiCmd)
 
 	// 为build命令添加flags
-	buildCmd.Flags().StringP("dockerfile", "f", "", "Dockerfile 的路径 (必需)")
 	buildCmd.Flags().StringP("name", "n", "", "镜像名称 (必需)")
 	buildCmd.Flags().StringP("version", "v", "", "镜像版本 (必需)")
 
 	// 标记为必需参数
-	buildCmd.MarkFlagRequired("dockerfile")
 	buildCmd.MarkFlagRequired("name")
 	buildCmd.MarkFlagRequired("version")
 

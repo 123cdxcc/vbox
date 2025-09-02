@@ -8,11 +8,17 @@ import (
 
 // TestBuildFromDockerfile 测试从单个 Dockerfile 构建
 func TestBuildFromDockerfile(t *testing.T) {
-	ch, err := BuildFromDockerfile(
+	ch, err := Build(
 		context.Background(),
-		"/Users/hongfuz/development/code/Golang/vbox/template/Base-Dockerfile",
-		"vbox-base",
-		"latest",
+		BuildOptions{
+			Name:           "golang",
+			Version:        "1.25.0",
+			Dockerfile:     "/Users/hongfuz/development/code/Golang/vbox/env/Dockerfile",
+			SetupScript:    "/Users/hongfuz/development/code/Golang/vbox/env/setup.sh",
+			SetupEnvScript: "/Users/hongfuz/development/code/Golang/vbox/env/template/golang/1.25.0.sh",
+			Remove:         true,
+			NoCache:        false,
+		},
 	)
 	if err != nil {
 		t.Fatalf("构建失败: %v", err)

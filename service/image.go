@@ -9,14 +9,14 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/123cdxcc/vbox/config"
 	"github.com/123cdxcc/vbox/image"
 )
 
 // ImageBuildParams 包含构建镜像的参数
 type ImageBuildParams struct {
-	DockerfilePath string
-	Name           string
-	Version        string
+	EnvName string
+	Version string
 }
 
 // ImageListParams 包含列出镜像的参数
@@ -40,21 +40,53 @@ func NewImageService() *ImageService {
 
 // BuildImage 从 Dockerfile 构建镜像
 func (s *ImageService) BuildImage(ctx context.Context, params ImageBuildParams) error {
-	// 检查 Dockerfile 是否存在
-	if _, err := os.Stat(params.DockerfilePath); os.IsNotExist(err) {
-		return fmt.Errorf("Dockerfile 不存在: %s", params.DockerfilePath)
+	setupEnvScriptPath := filepath.Join(config.GlobalConfig.TemplatesDirPath, "template", params.EnvName, params.Version+".sh")
+	dockerfilePath := filepath.Join(config.GlobalConfig.TemplatesDirPath, "Dockerfile")
+	setupScriptPath := filepath.Join(config.GlobalConfig.TemplatesDirPath, "setup.sh")
+
+	if _, err := os.Stat(setupEnvScriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("环境脚本不存在: %s", setupEnvScriptPath)
 	}
 
-	// 转换为绝对路径
-	absPath, err := filepath.Abs(params.DockerfilePath)
+	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+		return fmt.Errorf("Dockerfile 不存在: %s", dockerfilePath)
+	}
+
+	if _, err := os.Stat(setupScriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("启动脚本不存在: %s", setupScriptPath)
+	}
+
+	absSetupEnvScriptPath, err := filepath.Abs(setupEnvScriptPath)
 	if err != nil {
 		return fmt.Errorf("无法获取绝对路径: %v", err)
 	}
 
-	fmt.Printf("开始构建镜像: %s:%s\n", params.Name, params.Version)
-	fmt.Printf("使用 Dockerfile: %s\n", absPath)
+	absSetupScriptPath, err := filepath.Abs(setupScriptPath)
+	if err != nil {
+		return fmt.Errorf("无法获取绝对路径: %v", err)
+	}
 
-	respCh, err := image.BuildFromDockerfile(ctx, absPath, params.Name, params.Version)
+	if err != nil {
+		return fmt.Errorf("无法获取绝对路径: %v", err)
+	}
+
+	absDockerfilePath, err := filepath.Abs(dockerfilePath)
+	if err != nil {
+		return fmt.Errorf("无法获取绝对路径: %v", err)
+	}
+
+	fmt.Printf("开始构建镜像: %s:%s\n", params.EnvName, params.Version)
+	fmt.Printf("使用 Dockerfile: %s\n", absDockerfilePath)
+	fmt.Printf("使用启动脚本: %s\n", absSetupScriptPath)
+	fmt.Printf("使用环境脚本: %s\n", absSetupEnvScriptPath)
+
+	respCh, err := image.Build(ctx, image.BuildOptions{
+		Name:           params.EnvName,
+		Version:        params.Version,
+		Dockerfile:     absDockerfilePath,
+		SetupScript:    absSetupScriptPath,
+		SetupEnvScript: absSetupEnvScriptPath,
+	})
 	if err != nil {
 		return fmt.Errorf("构建失败: %v", err)
 	}
@@ -76,7 +108,7 @@ func (s *ImageService) BuildImage(ctx context.Context, params ImageBuildParams) 
 		}
 	}
 
-	fmt.Printf("\n镜像构建完成: vbox-%s:%s\n", params.Name, params.Version)
+	fmt.Printf("\n镜像构建完成: %s:%s\n", params.EnvName, params.Version)
 	return nil
 }
 

@@ -23,5 +23,5 @@ docker run -d \
 ## 连接容器
 
 ```bash
-ssh -p 2222 devbox@localhost
+ssh devbox@localhost
 ```
